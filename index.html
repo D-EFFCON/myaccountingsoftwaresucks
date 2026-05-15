@@ -97,6 +97,7 @@
   let introTimer = 0;
   let cursorPos = { x: CURSOR_START_X, y: CURSOR_START_Y };
   let gameFadeIn = 0;
+  let deathCause = 'crash';
 
   let player, levelObjects, worldX, frame, hiPct = 0;
   let keys = {};
@@ -299,8 +300,8 @@
     player.x = Math.max(15, Math.min(W - 15, player.x));
     player.y = Math.max(0, Math.min(H, player.y));
 
-    if (player.y - player.r < getCeiling(worldX + player.x)) { gameOver(); return; }
-    if (player.y + player.r > H - getFloor(worldX + player.x)) { gameOver(); return; }
+    if (player.y - player.r < getCeiling(worldX + player.x)) { gameOver('crash'); return; }
+    if (player.y + player.r > H - getFloor(worldX + player.x)) { gameOver('crash'); return; }
 
     for (const obj of levelObjects) {
       if (obj.type === 'ato') {
@@ -319,11 +320,11 @@
         obj.cycle = (obj.cycle + 1) % obj.cycleTime;
         const lightningOn = obj.cycle >= obj.onStart && obj.cycle < obj.onEnd;
         if (player.x + player.r > sx && player.x - player.r < sx + 44) {
-          if (player.y - player.r < obj.topH) { gameOver(); return; }
-          if (player.y + player.r > H - obj.botH) { gameOver(); return; }
+          if (player.y - player.r < obj.topH) { gameOver('crash'); return; }
+          if (player.y + player.r > H - obj.botH) { gameOver('crash'); return; }
           if (lightningOn) {
             const lcx = sx + 22;
-            if (player.x + player.r > lcx - 18 && player.x - player.r < lcx + 18) { gameOver(); return; }
+            if (player.x + player.r > lcx - 18 && player.x - player.r < lcx + 18) { gameOver('lightning'); return; }
           }
         }
       } else if (obj.type === 'ninja') {
@@ -350,15 +351,16 @@
         if (!obj.dead) {
           const cdx = nsx - player.x;
           const cdy = obj.y - player.y;
-          if (cdx*cdx + cdy*cdy < 27 * 27) { gameOver(); return; }
+          if (cdx*cdx + cdy*cdy < 27 * 27) { gameOver('ninja'); return; }
         }
       }
     }
     levelObjects = levelObjects.filter(o => !o.dead);
   }
 
-  function gameOver() {
+  function gameOver(cause) {
     state = 'gameover';
+    deathCause = cause || 'crash';
     const pct = Math.min(100, Math.round(worldX / LEVEL_LENGTH * 100));
     if (pct > hiPct) { hiPct = pct; document.getElementById('gst-best').textContent = 'Best: ' + hiPct + '%'; }
   }
@@ -873,28 +875,40 @@
   function drawGameover() {
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, W, H);
+    const mW = 380, mH = 210;
+    const mX = W/2 - mW/2, mY = 110;
     ctx.fillStyle = '#f7f3e7';
-    ctx.fillRect(W/2 - 170, 110, 340, 200);
+    ctx.fillRect(mX, mY, mW, mH);
     ctx.strokeStyle = '#E24B4A';
     ctx.lineWidth = 3;
-    ctx.strokeRect(W/2 - 170, 110, 340, 200);
+    ctx.strokeRect(mX, mY, mW, mH);
+
     ctx.fillStyle = '#E24B4A';
-    ctx.font = 'bold 24px monospace';
+    ctx.font = 'bold 22px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('RETURN LOST', W/2, 152);
+    ctx.fillText('TAX RETURN LOST', W/2, mY + 42);
+
+    let subtitle;
+    if (deathCause === 'lightning') {
+      subtitle = 'You got hit by a server outage!';
+    } else if (deathCause === 'ninja') {
+      subtitle = 'You got smacked down by a terrible developer';
+    } else {
+      subtitle = 'You crashed into a server';
+    }
     ctx.fillStyle = '#2c2c2a';
-    ctx.font = '12px monospace';
-    ctx.fillText('Connection to ATO server timed out', W/2, 176);
-    const pct = Math.min(100, Math.round(worldX / LEVEL_LENGTH * 100));
+    ctx.font = '11px monospace';
+    ctx.fillText(subtitle, W/2, mY + 75);
+
     ctx.font = '11px monospace';
     ctx.fillStyle = '#888780';
-    ctx.fillText('Lodged ' + pct + '% before failure', W/2, 210);
-    ctx.fillText('Personal best: ' + hiPct + '%', W/2, 230);
+    ctx.fillText('Personal best: ' + hiPct + '%', W/2, mY + 115);
+
     ctx.fillStyle = '#185fa5';
-    ctx.fillRect(W/2 - 80, 255, 160, 40);
+    ctx.fillRect(W/2 - 80, mY + 140, 160, 42);
     ctx.fillStyle = '#fff';
     ctx.font = 'bold 13px monospace';
-    ctx.fillText('RESUBMIT', W/2, 280);
+    ctx.fillText('RESUBMIT', W/2, mY + 167);
   }
 
   function drawVictory() {
